@@ -241,4 +241,90 @@ order by days_diff
 ## Итоговые выводы по смене модели монетизации
 Думаю, можно в первые дни увеличить начисления монет за решения, задач, прохождения тестов (для того, чтобы пользователь адаптировался к платформе) и уменьшать постепенно в течение, например, одного месяца. Но предлагать скидку на длительную подписку для клиентов, которые активны более 30 дней. 
 Также желательно создавать опрос о целях регистрации на платформе. Например, при решении задач для разового/пробного семинара нет необходимости использовать платформу более 1-2 дней.
-   
+
+# Дополнительное задание 2
+Для выгрузки используем sql-запросы:
+- активность на платформе в распределении по дням недели
+- активность на платформе в распределении по времени суток
+- активность на платформе в распределении по дням недели и времени суток ((день-1)*24+час)
+```sql
+with p1 as
+(
+select user_id , created_at from coderun  
+union all
+select user_id , created_at from codesubmit 
+union all 
+select user_id , created_at from teststart 
+)
+select extract(isodow from created_at) as part_day, count(*) as cnt  
+from p1 
+group by extract(isodow from created_at)
+order by extract(isodow from created_at) 
+
+---------------------------------------------------------------------- 
+with p1 as
+(
+select user_id , created_at from coderun  
+union all
+select user_id , created_at from codesubmit 
+union all 
+select user_id , created_at from teststart 
+)
+select extract(hour from created_at) as time_act, count(user_id) as cnt 
+from p1
+group by extract(hour from created_at)
+order by extract(hour from created_at) 
+----------------------------------------------------------------------
+with p1 as
+(
+select user_id , extract(isodow from created_at) as part_day,
+extract(hour from created_at) as time_act from coderun  
+union all
+select user_id , extract(isodow from created_at) as part_day, 
+extract(hour from created_at) as time_act from codesubmit 
+union all 
+select user_id , extract(isodow from created_at) as part_day,
+extract(hour from created_at) as time_act from teststart 
+)
+select (part_day-1)*24 + time_act as day_time, 
+count(user_id) as cnt 
+from p1
+group by part_day, time_act, (part_day-1)*24 + time_act
+order by part_day, time_act, (part_day-1)*24 + time_act 
+```
+
+Для загрузки данных, построения графиков, используем такие коды:
+```python
+import pandas as pd
+import matplotlib.pyplot as plt
+part_day = pd.read_csv("../data/part_day.csv")
+plt.plot(part_day.part_day, part_day.cnt, color = 'green')
+plt.grid()
+plt.title('Активность по дням недели')
+plt.xlabel('Дни недели')
+plt.ylabel('Активность')
+plt.show()
+```
+```python
+import pandas as pd
+import matplotlib.pyplot as plt
+time_act = pd.read_csv("../data/time_act.csv")
+plt.plot(time_act.time_act, time_act.cnt, color = 'red')
+plt.grid()
+plt.title('Активность по часам суток')
+plt.xlabel('Час суток')
+plt.ylabel('Активность')
+plt.show()
+```
+```python
+import pandas as pd
+import matplotlib.pyplot as plt
+week_time = pd.read_csv("../data/week_time.csv")
+plt.plot(week_time.day_time, week_time.cnt, color = 'black')
+plt.grid()
+plt.title('Активность по часам недели')
+plt.xlabel('Час недели')
+plt.ylabel('Активность')
+plt.show()
+```   
+Выводы: Рекомендую проводить релизы в ночные часы (23:00-4:00). При необходимости задействовать весь дневные часы в первом приоритете установку делать в субботу, во втором - в воскресенье.
